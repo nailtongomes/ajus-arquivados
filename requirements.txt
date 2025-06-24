@@ -1,0 +1,28 @@
+# Core Dependencies
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Data Processing
+pyarrow>=12.0.0  # Para leitura de arquivos .parquet
+
+# Visualization
+plotly>=5.15.0
+
+# JSON Processing (built-in, mas listando para documentação)
+# json - built-in Python module
+
+# Date/Time Processing (built-in, mas listando para documentação)
+# datetime - built-in Python module
+
+# Optional: Development and Testing
+# pytest>=7.0.0
+# black>=23.0.0
+# flake8>=6.0.0
+
+# Optional: Performance Optimization
+# streamlit-aggrid>=0.3.0  # Para tabelas mais avançadas se necessário
+# redis>=4.5.0  # Para cache em produção (futuro)
+
+# Optional: Deployment
+# gunicorn>=20.1.0  # Para deploy em produção
