@@ -88,6 +88,35 @@ def check_processo_ativo(row):
     return not check_processo_nao_encontrado(row) and not check_processo_arquivado(row['movimentacoes'])
 
 
+def check_processo_suspeito_arquivamento(row):
+    """Verifica se processo é suspeito de arquivamento (sem movimentação útil há 2+ anos)"""
+    if pd.isna(row['data_ultima_movimentacao']):
+        return False
+
+    try:
+        # Converte string de data para datetime
+        if isinstance(row['data_ultima_movimentacao'], str):
+            ultima_data = pd.to_datetime(row['data_ultima_movimentacao'], format='%d/%m/%Y', errors='coerce')
+        else:
+            ultima_data = pd.to_datetime(row['data_ultima_movimentacao'], errors='coerce')
+
+        if pd.isna(ultima_data):
+            return False
+
+        # Verifica se última movimentação foi há mais de 2 anos
+        data_limite = datetime.now() - pd.DateOffset(years=2)
+        sem_movimentacao_recente = ultima_data < data_limite
+
+        # Verifica se não está arquivado e não é "não encontrado"
+        nao_arquivado = not check_processo_arquivado(row['movimentacoes'])
+        encontrado = not check_processo_nao_encontrado(row)
+
+        return sem_movimentacao_recente and nao_arquivado and encontrado
+
+    except Exception:
+        return False
+
+
 def format_data(data_str):
     """Formata data para exibição"""
     if pd.isna(data_str):
@@ -117,6 +146,8 @@ def main():
             df['nao_encontrado'] = df.apply(check_processo_nao_encontrado, axis=1)
             df['ativo'] = df.apply(check_processo_ativo, axis=1)
 
+            df['suspeito_arquivamento'] = df.apply(check_processo_suspeito_arquivamento, axis=1)
+
             # Sidebar com filtros
             st.sidebar.header("🔍 Filtros")
 
@@ -124,12 +155,15 @@ def main():
             total_processos = len(df)
             arquivados = df['arquivado'].sum()
             nao_encontrados = df['nao_encontrado'].sum()
+            suspeitos = df['suspeito_arquivamento'].sum()
             ativos = df['ativo'].sum()
 
             st.sidebar.markdown("### 📊 Resumo Geral")
             st.sidebar.metric("Total de Processos", total_processos)
             st.sidebar.metric("Processos Ativos", ativos, delta=f"{(ativos / total_processos * 100):.1f}%")
             st.sidebar.metric("Processos Arquivados", arquivados, delta=f"{(arquivados / total_processos * 100):.1f}%")
+            st.sidebar.metric("Suspeitos de Arquivamento", suspeitos,
+                              delta=f"{(suspeitos / total_processos * 100):.1f}%")
             st.sidebar.metric("Não Encontrados", nao_encontrados,
                               delta=f"{(nao_encontrados / total_processos * 100):.1f}%")
 
@@ -141,8 +175,9 @@ def main():
             # Radio button para seleção exclusiva
             status_selecionado = st.sidebar.radio(
                 "Selecione o status dos processos:",
-                options=["📦 Processos Arquivados", "✅ Processos Ativos", "❌ Não Encontrados"],
-                index=0  # Padrão: Arquivados
+                options=["📦 Processos Arquivados", "✅ Processos Ativos", "❌ Não Encontrados",
+                         "⚠️ Suspeitos de Arquivamento"],
+                index=0
             )
 
             # Aplicar filtros baseado na seleção
@@ -154,6 +189,8 @@ def main():
                 df_filtrado = df_filtrado[df_filtrado['arquivado'] == True]
             elif status_selecionado == "❌ Não Encontrados":
                 df_filtrado = df_filtrado[df_filtrado['nao_encontrado'] == True]
+            elif status_selecionado == "⚠️ Suspeitos de Arquivamento":
+                df_filtrado = df_filtrado[df_filtrado['suspeito_arquivamento'] == True]
 
             # Filtro por tribunal
             tribunais = df['tribunal'].unique()
